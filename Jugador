@@ -1,0 +1,126 @@
+#Script del Jugador
+extends Position2D
+
+var velocidad = Vector2()
+export (float) var GRAVEDAD = 100
+export (float) var velocidadDeMovimiento = 4000
+export (float) var vel_salto = 300
+var puedeSaltar = false
+var puedeDisparar = true
+enum estados {atacar, idle, corriendo, muerto}
+var estadoActual = estados.idle
+export(PackedScene) var fuego
+export(Vector2) var spawn_der
+export var victoria = false
+
+func _ready(): #Funcion contenida en Godot que corre el código dentro de la funcion al iniciarse el juego.
+	var enemigos = get_tree().get_nodes_in_group("enemigo") #se ignora la colision con enemigos cuando entra el jugador a la escena
+	for enemigo in enemigos:
+		get_node("cuerpoJ1").add_collision_exception_with(enemigo)
+	spawn_der = get_node("cuerpoJ1/spawnbala").position #inicia el punto de spawn de la bala que lanza el jugador
+	get_node("cuerpoJ1/CamaraJ1").set_limit(MARGIN_LEFT, get_tree().get_nodes_in_group("minimo")[0].global_position.x) #se establecen los limites de la camara con 2 puntos de referencia.
+	get_node("cuerpoJ1/CamaraJ1").set_limit(MARGIN_TOP, get_tree().get_nodes_in_group("minimo")[0].global_position.y)
+	get_node("cuerpoJ1/CamaraJ1").set_limit(MARGIN_RIGHT, get_tree().get_nodes_in_group("maximo")[0].global_position.x)
+	get_node("cuerpoJ1/CamaraJ1").set_limit(MARGIN_BOTTOM, get_tree().get_nodes_in_group("maximo")[0].global_position.y)
+
+func _physics_process(delta): #Funcion de tiempo
+	
+	velocidad.y += GRAVEDAD * delta
+	
+	if(estadoActual != estados.muerto): #condicional de ejecutar las acciones del personaje solo cuando este vivo.
+	
+		if(Input.is_action_pressed("tecla_d") && estadoActual != estados.atacar): #este if movera a nuestro personaje y ejecutara la animacion en la direccion original del sprite.
+			velocidad.x = velocidadDeMovimiento
+			get_node("cuerpoJ1/spawnbala").position = spawn_der
+			get_node("cuerpoJ1/Sprite").flip_h = false
+			estadoActual = estados.corriendo
+			if(Input.is_action_just_pressed("tecla_z") && (puedeSaltar)): #cuando se apriete la tecla z y la condicion puedeSaltar sea verdadera:
+				get_node("cuerpoJ1/animacionJ1").play("correr") #se ejecutara la animacion de correr y aumentara la velocidad del personaje
+			if(Input.is_action_pressed("tecla_z") && (puedeSaltar)):
+				velocidad.x = 23000
+				get_node("cuerpoJ1/animacionJ1").play("correr")
+			elif(Input.is_action_just_released("tecla_z")): #cuando se deje deje de apretar la tecla z el personaje detendra su animacion y cambiara su estado a reposo.
+				get_node("cuerpoJ1/animacionJ1").stop()
+				velocidad.x = velocidadDeMovimiento
+				estadoActual = estados.idle
+			elif(!get_node("cuerpoJ1/animacionJ1").is_playing() && (puedeSaltar)): #si no se esta ejecutando alguna animacion y el personaje puede saltar el jugador caminara.
+				get_node("cuerpoJ1/animacionJ1").play("caminar")
+				
+		elif(Input.is_action_pressed("tecla_i") && estadoActual != estados.atacar): #este segmento del codigo hace lo mismo que el anterior pero en espejo, invirtiendo el sprite y las animaciones
+			velocidad.x = -velocidadDeMovimiento
+			get_node("cuerpoJ1/spawnbala").position = Vector2(spawn_der.x * -1, spawn_der.y)
+			get_node("cuerpoJ1/Sprite").flip_h = true
+			estadoActual = estados.corriendo
+			if(Input.is_action_just_pressed("tecla_z") && (puedeSaltar)):
+				get_node("cuerpoJ1/animacionJ1").play("correr")
+			if(Input.is_action_pressed("tecla_z") && (puedeSaltar)):
+				velocidad.x = -23000
+				get_node("cuerpoJ1/animacionJ1").play("correr")
+			elif(Input.is_action_just_released("tecla_z")):
+				get_node("cuerpoJ1/animacionJ1").stop()
+				estadoActual = estados.idle
+				velocidad.x = -velocidadDeMovimiento
+			elif(!get_node("cuerpoJ1/animacionJ1").is_playing() && (puedeSaltar)):
+				get_node("cuerpoJ1/animacionJ1").play("caminar")	
+		else:
+			velocidad.x = 0 #si el jugador no se esta moviendo entonces se ejecutara el estado de reposo
+			if(puedeSaltar && estadoActual != estados.atacar):
+				get_node("cuerpoJ1/animacionJ1").play("Idle")
+		if(Input.is_action_pressed("tecla_x") && puedeSaltar): #si se aprieta la tecla x y se puede saltar entonces habrá una velocidad en el eje y y se ejecutara la animacion del salto
+			velocidad.y = -vel_salto
+			get_node("cuerpoJ1/animacionJ1").play("salto")
+			puedeSaltar = false #el estado de salto se vuelve falso para que no pueda volver a saltar mientras realiza la accion
+		var movimiento = velocidad * delta
+		get_node("cuerpoJ1").move_and_slide(movimiento) #se obtiene la colision de nuestro jugador.
+		if(Input.is_action_pressed("tecla_c") && (puedeSaltar) && puedeDisparar): #si podemos saltar y disparar y apretamos la tecla c en el punto de spawn de la bala aparecera una bala
+			estadoActual = estados.atacar
+			ataque()
+			var newDisparo = fuego.instance()
+			get_node("cuerpoJ1/animacionJ1").play("ataque1") #se ejecutara la animacion del ataque
+			newDisparo.global_position = get_node("cuerpoJ1/spawnbala").global_position
+			get_tree().get_nodes_in_group("main")[0].add_child(newDisparo)
+			puedeDisparar = false #cambiamos el estado de disparo para que se pueda tener una taza de disparo controlada
+			get_node("cuerpoJ1/timer_cd").start() #cuando se ejecute esta accion con ayuda de una funcion de godot se cuentan segundos y cuando acabe el conteo se podra volver a disparar
+			if(get_node("cuerpoJ1/Sprite").flip_h): #aqui se invierte el sentido de la bala dependiendo de la direccion donde este mirando el jugador
+				newDisparo.velocidad.x = -newDisparo.potencia
+				
+			else:
+				newDisparo.velocidad.x = newDisparo.potencia
+				
+		
+		if(get_node("cuerpoJ1").get_slide_collision(get_node("cuerpoJ1").get_slide_count()-1) != null): #si nuestro jugador colisiona con algo, como va a reaccionar
+			var objetoColisionado = get_node("cuerpoJ1").get_slide_collision(get_node("cuerpoJ1").get_slide_count()-1).collider
+			if(objetoColisionado.is_in_group("suelo")):#si es el suelo, podremos volver a saltar si nuestro estado de puedeSaltar es falso
+				get_tree().get_nodes_in_group("spawnj1")[0].global_position = get_node("cuerpoJ1").global_position #en caso de que muera se spawneara al jugador en el ultimo segmento de suelo colisionado
+				if(puedeSaltar == false):
+					puedeSaltar = true
+					get_node("cuerpoJ1/animacionJ1").stop()
+			elif(objetoColisionado.is_in_group("enemigo")): #si se colisiona con un enemigo entonces se ejecutara la funcion de muerte del jugador
+				muerte_jugador()
+		elif(puedeSaltar): #si no se colisiona con nada no se puede saltar.
+			puedeSaltar = false
+	
+func _on_timer_cd_timeout(): #esta funcion maneja el tiempo que toma volver a activar la funcion puedeDisparar
+	puedeDisparar = true
+func ataque(): #esta funcion se asegura de que termine la funcion de atacar antes de ejecutarse otra animacion
+	get_node("cuerpoJ1/animacionJ1").play("ataque1")
+	yield(get_node("cuerpoJ1/animacionJ1"), "animation_finished")
+	estadoActual = estados.idle
+		
+func muerte_jugador():
+	velocidad.x = 0
+	var enemigos = get_tree().get_nodes_in_group("enemigo") #cuando mueres no hay colision con enemigos y tu estado pasa a muerto
+	for enemigo in enemigos:
+		get_node("cuerpoJ1").add_collision_exception_with(enemigo)
+	estadoActual = estados.muerto
+	get_node("cuerpoJ1/animacionJ1").play("muerte") #se ejecuta la animacion de muerte
+	yield(get_node("cuerpoJ1/animacionJ1"), "animation_finished")
+	get_tree().get_nodes_in_group("main")[0].respawn_j1() #del script del main se ejecuta la funcion de respawn y tu conteo de vidas baja en 1
+	get_tree().get_nodes_in_group("main")[0].jugadorVida -= 1
+	get_tree().get_nodes_in_group("camara")[0].global_position = get_node("cuerpoJ1/CamaraJ1").global_position #el control de la camara pasa a una camara secundaria.
+	queue_free() #libera el nodo del jugador quitandolo del juego
+
+
+func _on_VisibilityNotifier2D_screen_exited(): #funcion de godot que mide la visibilidad del jugador
+	 #cuando el jugador salga de la pantalla morira automaticamente.
+	muerte_jugador()
