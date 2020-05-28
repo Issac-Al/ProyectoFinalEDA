@@ -1,0 +1,18 @@
+#Disparo del jugador
+extends KinematicBody2D
+
+var velocidad = Vector2()
+export var potencia = 0
+
+func _ready():
+	velocidad.x = 0
+	velocidad.y = 0
+func _physics_process(delta):
+	var movimiento = velocidad * delta #aqui se asigna la velocidad de la bala
+	move_and_collide(movimiento)
+	var suelos = get_tree().get_nodes_in_group("suelo") #nuestra bala no colisionara con objetos en el grupo suelo
+	for suelo in suelos:
+		add_collision_exception_with(suelo)
+	
+func _on_VisibilityNotifier2D_screen_exited(): #cuando la bala salga de la pantalla se eliminara
+	queue_free()
