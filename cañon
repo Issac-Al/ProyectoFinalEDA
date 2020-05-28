@@ -1,0 +1,36 @@
+#Cañon
+extends KinematicBody2D
+var habilitado = false
+var puede_disparar = true
+export (PackedScene) var balaEnemiga
+
+
+func _ready():
+	pass
+
+func _physics_process(delta):
+	if (habilitado):
+		var enemigos = get_tree().get_nodes_in_group("enemigo")
+		for enemigo in enemigos:
+			add_collision_exception_with(enemigo) #la bala no colisionara con enemigos.
+		if (puede_disparar):
+			disparar()
+			get_node("cd_bala").start() #cuando se dispare el cañon empieza el conteo para volver a habilitar el disparo.
+
+
+func _on_VisibilityNotifier2D_screen_entered():
+	habilitado = true
+func disparar(): #aqui se establece donde apareceran las balas y se cambiara a falso el estado de disparo para controlar la cantidad de disparos
+	puede_disparar = false
+	var newBala = balaEnemiga.instance()
+	get_tree().get_nodes_in_group("main")[0].add_child(newBala)
+	newBala.global_position = get_node("spawnbala").global_position
+	newBala.velocidad.x = newBala.potencia
+
+
+func _on_cd_flecha_timeout(): #esta funcion maneja la cantidad de balas por segundo
+	puede_disparar = true
+
+
+func _on_VisibilityNotifier2D_screen_exited(): #el cañon disparara solo cuando este en campo de vision
+	habilitado = false
