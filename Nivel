@@ -1,0 +1,54 @@
+#Nivel
+extends Node
+
+export (PackedScene) var Jugador_1
+export (PackedScene) var Vida
+export (PackedScene) var gameover
+export (PackedScene) var reiniciar
+export (PackedScene) var juego
+
+export var jugadorVida = 3
+var vidas = []
+
+func _ready():
+	
+	spawn_j1()
+	get_tree().get_nodes_in_group("camara")[0].set_limit(MARGIN_LEFT, get_tree().get_nodes_in_group("minimo")[0].global_position.x) #se establecen los limites del nivel
+	get_tree().get_nodes_in_group("camara")[0].set_limit(MARGIN_TOP, get_tree().get_nodes_in_group("minimo")[0].global_position.y)
+	get_tree().get_nodes_in_group("camara")[0].set_limit(MARGIN_RIGHT, get_tree().get_nodes_in_group("maximo")[0].global_position.x)
+	get_tree().get_nodes_in_group("camara")[0].set_limit(MARGIN_BOTTOM, get_tree().get_nodes_in_group("maximo")[0].global_position.y)
+	crearVidas()
+	
+func respawn_j1():
+	get_tree().get_nodes_in_group("camara")[0].make_current() #aqui se establece la segunda camara cuando el jugador muere
+	if(jugadorVida > 0): #si tu conteo de vidas es mayor que 0 se contaran 2 segundos y despues se volvera a spawnear al jugador
+		yield(get_tree().create_timer(2,0), "timeout")#esta funcion es la que cuenta 2 segundos
+		get_tree().get_nodes_in_group("camara")[0].clear_current() #cuando spawnea el jugador la camara principal vuelve a tomar el control
+		spawn_j1()
+		actualizarVida()
+	else: #cuando nuestras vidas llegan a 0 se cuentan 5 segundos y el juego vuelve a empezar
+		gameover()
+		yield(get_tree().create_timer(5,0), "timeout")
+		get_tree().reload_current_scene()
+		
+func spawn_j1(): #se guarda el nodo del jugador en una variable y se spawnea en el nivel
+	var j1 = Jugador_1.instance()
+	get_tree().get_nodes_in_group("nivel")[0].add_child(j1)
+	j1.global_position = get_tree().get_nodes_in_group("spawnj1")[0].global_position
+func crearVidas(): #aqui se toma la escena del sprite de vidas y se crean en pantalla dependiendo del numero de vidas que se tengan
+	for i in jugadorVida:
+		var newVida = Vida.instance()
+		vidas.append(newVida)
+		get_tree().get_nodes_in_group("GUI")[0].add_child(newVida)
+		newVida.global_position.x += i * 60
+
+func actualizarVida(): #aqui se van restando los sprites de vidas conforme se va muriendo.
+	vidas[jugadorVida].queue_free()
+
+func gameover(): #cuando se pierde ya no aparece el jugador y aparece un mensaje de gameover
+	var fin = gameover.instance()
+	var reinicio = reiniciar.instance()
+	get_tree().get_nodes_in_group("GUI")[0].add_child(fin)
+
+
+
