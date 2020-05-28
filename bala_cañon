@@ -1,0 +1,31 @@
+#Bala de cañon
+extends KinematicBody2D
+
+var velocidad = Vector2()
+export var potencia = 0
+
+func _ready():
+	velocidad.x = 0
+	velocidad.y = 0
+func _physics_process(delta):
+	var movimiento = -velocidad * delta #la bala avanzara hacia el jugador
+	var todos_suelos = get_tree().get_nodes_in_group("suelo") 
+	for suelo in todos_suelos:
+		add_collision_exception_with(suelo)#la bala no colisionara con objetos de colision tipo suelo
+	var enemigos = get_tree().get_nodes_in_group("enemigo")#la bala no colisionara con enemigos
+	for enemigo in enemigos:
+		add_collision_exception_with(enemigo)
+		
+	var balas = get_tree().get_nodes_in_group("bala") #las balas tanto aliadas como enemigas no pueden colisionar entre si
+	for bala in balas:
+		add_collision_exception_with(bala)
+	move_and_slide(movimiento)
+	
+	if(get_slide_collision(get_slide_count()-1) != null):
+		var objetoColisionado = get_slide_collision(get_slide_count()-1).collider
+		if(objetoColisionado.is_in_group("jugador")):
+			objetoColisionado.get_parent().muerte_jugador() #si la bala colisiona con un jugador el jugador muere
+			queue_free()
+		
+func _on_VisibilityNotifier2D_screen_exited(): #cuando la bala salga del campo de vision se eliminara
+	queue_free()
