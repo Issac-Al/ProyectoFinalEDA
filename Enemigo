@@ -1,0 +1,46 @@
+#Personaje Enemigo
+extends KinematicBody2D
+
+export (float) var GRAVEDAD = 100
+var velocidad = Vector2()
+export (float) var velocidadDeMovimiento = 4000
+enum estados {corriendo, saltando, cayendo}
+var estado_actual = estados.corriendo
+var habilitado = false
+
+func _ready():
+	get_node("Sprite").flip_h = true #invertimos el sprite y hacemos que camine en direccion al jugador
+	get_node("enemigo_animacion").play("enemigo_caminar")
+	
+func _physics_process(delta):
+	
+	if(habilitado):
+	
+		velocidad.y += GRAVEDAD * delta
+		velocidad.x = -velocidadDeMovimiento
+		
+		var movimiento = velocidad * delta
+		
+		move_and_slide(movimiento)
+	
+		
+		if(get_slide_collision(get_slide_count()-1) != null):
+			var objetoColisionado = get_slide_collision(get_slide_count()-1).collider
+			if(objetoColisionado.is_in_group("suelo") && estado_actual != estados.corriendo): #si el enemigo colisiona con una bala muere, si colisiona con un jugador el jugador muere.
+				estado_actual = estados.corriendo
+			elif(objetoColisionado.is_in_group("bala")):
+				muerte_enemigo()
+				objetoColisionado.queue_free()
+			elif(objetoColisionado.is_in_group("jugador")):
+				objetoColisionado.get_parent().muerte_jugador()
+func muerte_enemigo(): #cuando el enemigo colisiona con una bala del jugador se ejecutara la animacion de muerte enemiga y despues se elimina el nodo
+	get_node("enemigo_animacion").play("explosion")
+	yield(get_node("enemigo_animacion"), "animation_finished")
+	queue_free()
+	
+func _on_VisibilityNotifier2D_screen_entered(): #si el personaje no esta en pantalla no actuara ni se movera.
+	habilitado = true
+
+
+func _on_VisibilityNotifier2D_screen_exited(): #cuando el enemigo sale de la pantalla se elimina
+	queue_free()
